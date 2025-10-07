@@ -1,23 +1,13 @@
-import os
-import requests
+from sqlalchemy import create_engine
 import pandas as pd
 from datetime import datetime
-from sqlalchemy import create_engine
-from dotenv import load_dotenv
+from newsapi_fetcher import fetch_newsapi
+from guardian_fetcher import fetch_guardian
 
-load_dotenv()
-API_KEY = os.getenv("NEWSAPI_KEY")
 DB_URI = "postgresql://user:pass@localhost:5432/world_news"
 engine = create_engine(DB_URI)
 
-def fetch_news(country="us", category="general"):
-    url = "https://newsapi.org/v2/top-headlines"
-    params = {"country": country, "category": category, "apiKey": API_KEY}
-    r = requests.get(url, params=params)
-    r.raise_for_status()
-    return r.json()
-
-def normalize_articles(data, country="us", category="general"):
+def normalize_newsapi(data, country="us", category="general"):
     return [
         {
             "title": a.get("title"),
@@ -33,11 +23,54 @@ def normalize_articles(data, country="us", category="general"):
         for a in data.get("articles", [])
     ]
 
+def normalize_guardian(data, section="technology"):
+    return [
+        {
+            "title": a["fields"].get("headline"),
+            "source": "The Guardian",
+            "published_at": a.get("webPublicationDate"),
+            "url": a.get("webUrl"),
+            "image_url": a["fields"].get("thumbnail"),
+            "country": "uk",
+            "language": "en",
+            "category": section,
+            "fetched_at": datetime.utcnow()
+        }
+        for a in data.get("response", {}).get("results", [])
+    ]
+
+
+# Fetch news from all APIs, normalize, and store in Postgres.--------------
+def ingest_all_apis():
+    total_inserted = 0
+
+    # --- NewsAPI ---
+    news_data = fetch_newsapi(country="us", category="technology")
+    df_newsapi = pd.DataFrame(normalize_newsapi(news_data))
+    save_to_postgres(df_newsapi)
+    total_inserted += len(df_newsapi)
+
+    # --- Guardian ---
+    guardian_data = fetch_guardian(section="technology")
+    df_guardian = pd.DataFrame(normalize_guardian(guardian_data))
+    save_to_postgres(df_guardian)
+    total_inserted += len(df_guardian)
+
+    return total_inserted
+
+
 def save_to_postgres(df):
     df.to_sql("articles", engine, if_exists="append", index=False)
 
 if __name__ == "__main__":
-    data = fetch_news(country="us", category="technology")
-    df = pd.DataFrame(normalize_articles(data))
-    save_to_postgres(df)
-    print(f"Inserted {len(df)} rows")
+    # NewsAPI
+    news_data = fetch_newsapi(country="us", category="technology")
+    df_newsapi = pd.DataFrame(normalize_newsapi(news_data))
+    save_to_postgres(df_newsapi)
+
+    # Guardian
+    guardian_data = fetch_guardian(section="technology")
+    df_guardian = pd.DataFrame(normalize_guardian(guardian_data))
+    save_to_postgres(df_guardian)
+
+    print(f"Inserted {len(df_newsapi) + len(df_guardian)} rows")
