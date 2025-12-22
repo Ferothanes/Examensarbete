@@ -1,0 +1,16 @@
+streamlit
+duckdb
+pandas
+numpy
+plotly
+requests
+python-dotenv
+eventregistry
+pyarrow
+watchdog
+dagster
+dagster-webserver
+dagster-graphql
+openpyxl
+pytest
+google-generativeai
