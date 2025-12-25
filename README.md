@@ -3,6 +3,22 @@
 ## What this is
 A small, beginner-friendly project that fetches world news, stores it in DuckDB, and presents insights in a Streamlit dashboard. Dagster is used for scheduling and orchestration; ingestion scripts fetch data from sources.
 
+## Project scope 
+Why this dashboard exists: In a time of constant global conflict, information overload, and growing concerns around misinformation, understanding how the world is being reported is more important than ever. News does not only shape what we know - it shapes what we notice, what we ignore, and how we understand global events.
+### What we combine
+
+This dashboard brings together two complementary news sources to provide a more complete view of global coverage:
+
+- **EventRegistry** — Rich article text and topic signals, making it well suited for narrative and framing analysis. Geographic origin is limited or inconsistent.
+- **GDELT** — Strong country and location metadata, ideal for analyzing where news attention is concentrated, but with little to no topic or article body information.
+
+Each source is used for what it does best: **GDELT for geographic coverage**, **EventRegistry for topics and narratives**.
+
+### How to read the dashboard
+
+Rather than focusing on individual articles, the dashboard highlights **patterns in coverage** across regions, languages, and time. Use the filters to explore where attention is concentrated, which topics dominate, how narratives persist, and which stories may be underrepresented.
+
+
 ---
 
 ## Dataflow (very short) 🔁
