@@ -21,13 +21,13 @@ Rather than focusing on individual articles, the dashboard highlights **patterns
 
 ---
 
-## Dataflow (very short) 🔁
+## Dataflow (very short) 
 
 ingestion scripts --> transforms --> DuckDB (world_news.duckdb) --> Streamlit dashboard / Dagster jobs
 
 ---
 
-## Quick folder map (important parts) 🔎
+## Quick folder map (important parts) 
 - `ingestion/` — scripts that fetch and save news (e.g., `ingest_news.py`, fetchers)
 - `transforms/` — data normalization helpers
 - `dashboard/` — Streamlit app (`app.py`) + pages
@@ -37,14 +37,14 @@ ingestion scripts --> transforms --> DuckDB (world_news.duckdb) --> Streamlit da
 
 ---
 
-## Prerequisites ✅
+## Prerequisites 
 - Python 3.10+ (Windows instructions shown)
 - Docker (optional but recommended for container run)
 - Git (optional)
 
 ---
 
-## Setup (Windows) — Fast path ⚡
+## Setup (Windows) — Fast path
 1. Create and activate venv:
 
 ```powershell
@@ -62,7 +62,7 @@ pip install -r requirements.txt
 
 ---
 
-## Common commands (beginner-friendly) 🛠️
+## Common commands (beginner-friendly) 
 
 - Run ingestion (fetch & save news to DuckDB):
 
@@ -114,15 +114,3 @@ python -m pytest
 - Make sure `.env` exists when using Docker or services that depend on env vars.
 
 > Tip: Run ingestion first to populate `world_news.duckdb` before exploring the dashboard.
-
----
-
-## Mini glossary ✏️
-- **Ingestion**: fetch news from sources and save raw data.
-- **Transforms**: clean/normalize data for analysis.
-- **Dagster**: scheduler and orchestrator for regular ingestion runs.
-- **DuckDB**: a local analytical database file used for storing articles.
-
----
-
-If you'd like, I can make this even more minimal (one-page cheat-sheet) or add an `.env.example` template — tell me which you'd prefer.
