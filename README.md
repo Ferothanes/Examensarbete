@@ -25,40 +25,6 @@ Rather than focusing on individual articles, the dashboard highlights **patterns
 
 ingestion scripts --> transforms --> DuckDB (world_news.duckdb) --> Streamlit dashboard / Dagster jobs
 
-## Project Structure (visualized)
-
-```
-Examensarbete_repository/
-├── ingestion/
-│   ├── __init__.py
-│   ├── ingest_news.py
-│   ├── article_types.py
-│   ├── schema.py
-│   ├── eventregistry_fetcher.py
-│   └── gdelt_fetcher.py
-├── dagster_code/
-│   └── repository.py
-├── dashboard/
-│   ├── pages/
-│   │    ├── Financial_Focus.py
-│   │    ├── Global_Coverage.py
-│   │    └── News_Analysis.py
-│   ├── app.py   
-│   └── styles.py
-├── transforms/
-│   └── transform_utils.py
-├── tests/
-│   └── unit_test.py
-├── assets/
-├── exploration.ipynb
-├── world_news.duckdb
-├── README.MD
-├── requirements.txt
-├── Dockerfile
-└── .env
-```
-
-
 ---
 
 ## Quick folder map (important parts) 🔎
