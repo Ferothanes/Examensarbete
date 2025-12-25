@@ -1,6 +1,5 @@
 import os
 import sys
-import io
 import json
 import pandas as pd
 import duckdb
@@ -24,13 +23,13 @@ from dashboard.styles import apply_theme, render_nav, apply_hover_style
 DB_FILE = os.path.join(ROOT_DIR, "world_news.duckdb")
 LOGO_FILE = os.path.join(ROOT_DIR, "assets", "logo.png")
 
-st.set_page_config(page_title="News Analysis", layout="wide")
+st.set_page_config(page_title="Text Analysis", layout="wide")
 apply_theme()
 
 # Meny ------------------------------------------
 render_nav()
 
-st.title("News Analysis")
+st.title("Text Analysis")
 st.markdown("This page breaks down what the news is actually about: " \
 "dominant topics, recurring storylines, and the narratives that shape coverage.")
 
@@ -213,6 +212,15 @@ clusters_sorted = sorted(clusters, key=lambda c: len(c), reverse=True)
 
 if clusters_sorted:
     st.subheader("Repeated Narratives Across Articles")
+    st.markdown(
+        "Articles are clustered when their headlines share at least 35% of keywords. "
+        "This table shows the repeated narrative (headline snippet), cluster size, "
+        "a topic hint, and a few example titles.\n\n"
+        "- **Cluster size**: how many near-duplicate or highly similar headlines we found.\n"
+        "- **Topic hint**: the most common category inside the cluster.\n"
+        "- **Examples**: sample headlines so you can quickly see the shared narrative."
+    )
+
     def _mode_topic(rows):
         bag = Counter()
         for r in rows:
@@ -228,21 +236,3 @@ if clusters_sorted:
     })
 
     st.dataframe(table, use_container_width=True)
-
-    buffer = io.BytesIO()
-    table.to_excel(buffer, index=False)
-    st.download_button(
-        "Download clusters as Excel",
-        buffer.getvalue(),
-        file_name="repeated_narratives.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-
-    st.markdown(
-        "Articles are clustered when their headlines share at least 35% of keywords. "
-        "This table shows the repeated narrative (headline snippet), cluster size, "
-        "a topic hint, and a few example titles.\n\n"
-        "- **Cluster size**: how many near-duplicate or highly similar headlines we found.\n"
-        "- **Topic hint**: the most common category inside the cluster.\n"
-        "- **Examples**: sample headlines so you can quickly see the shared narrative."
-    )

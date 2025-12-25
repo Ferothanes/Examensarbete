@@ -45,10 +45,11 @@ cutoff = datetime.now(timezone.utc) - time_window if time_window else None
 cutoff_iso = cutoff.isoformat() if cutoff else None
 
 @st.cache_data(ttl=600)
-def load_counts(cutoff_iso: str | None):
+def load_country_counts(cutoff_iso: str | None):
+    """Load GDELT article counts per source country."""
     con = duckdb.connect(DB_FILE, read_only=True)
     query = """
-        SELECT source_country, provider, published_at
+        SELECT source_country, published_at
         FROM articles
         WHERE source_country IS NOT NULL
           AND lower(provider) = 'gdelt'
@@ -57,16 +58,16 @@ def load_counts(cutoff_iso: str | None):
     if cutoff_iso:
         query += " AND published_at >= ?"
         params.append(cutoff_iso)
-    df = con.execute(query, params).df()
+    country_df = con.execute(query, params).df()
     con.close()
-    df["published_at"] = pd.to_datetime(df["published_at"], utc=True, errors="coerce")
-    counts = df.groupby("source_country").size().reset_index(name="article_count")
-    counts = counts[counts["source_country"].notna()]
-    return counts
+    country_df["published_at"] = pd.to_datetime(country_df["published_at"], utc=True, errors="coerce")
+    counts = country_df.groupby("source_country").size().reset_index(name="article_count")
+    return counts[counts["source_country"].notna()]
 
 
 @st.cache_data(ttl=600)
 def load_domain_counts(cutoff_iso: str | None):
+    """Load GDELT article counts per (country, domain)."""
     con = duckdb.connect(DB_FILE, read_only=True)
     query = """
         SELECT source_country, source_domain, published_at
@@ -79,25 +80,24 @@ def load_domain_counts(cutoff_iso: str | None):
     if cutoff_iso:
         query += " AND published_at >= ?"
         params.append(cutoff_iso)
-    df = con.execute(query, params).df()
+    domain_df = con.execute(query, params).df()
     con.close()
-    df["published_at"] = pd.to_datetime(df["published_at"], utc=True, errors="coerce")
-    grouped = (
-        df.groupby(["source_country", "source_domain"])
+    domain_df["published_at"] = pd.to_datetime(domain_df["published_at"], utc=True, errors="coerce")
+    return (
+        domain_df.groupby(["source_country", "source_domain"])
         .size()
         .reset_index(name="article_count")
     )
-    return grouped
 
-data = load_counts(cutoff_iso)
-domain_data = load_domain_counts(cutoff_iso)
+country_counts = load_country_counts(cutoff_iso)
+domain_counts = load_domain_counts(cutoff_iso)
 
-total_articles = data["article_count"].sum()
-data["share"] = (data["article_count"] / total_articles * 100).round(1)
+total_articles = country_counts["article_count"].sum()
+country_counts["share"] = (country_counts["article_count"] / total_articles * 100).round(1)
 
 # Label coverage tiers by volume (low/mid/high based on quantiles)
-low_cut = data["article_count"].quantile(0.33)
-high_cut = data["article_count"].quantile(0.66)
+low_cut = country_counts["article_count"].quantile(0.33)
+high_cut = country_counts["article_count"].quantile(0.66)
 
 def coverage_label(count: float) -> str:
     if count >= high_cut:
@@ -106,7 +106,7 @@ def coverage_label(count: float) -> str:
         return "Low coverage"
     return "Medium coverage"
 
-data["coverage_label"] = data["article_count"].apply(coverage_label)
+country_counts["coverage_label"] = country_counts["article_count"].apply(coverage_label)
 
 # Match the Financial Focus globe palette
 colorscale = [
@@ -119,7 +119,7 @@ col1, col2 = st.columns([1, 2], gap="large")
 with col1:
     st.subheader("Coverage Imbalance by Country (GDELT)")
     country_cards = []
-    for _, row in data.sort_values("article_count", ascending=False).head(10).iterrows():
+    for _, row in country_counts.sort_values("article_count", ascending=False).head(10).iterrows():
         country_name = row["source_country"] if pd.notna(row["source_country"]) else "Unknown"
         country_cards.append(
             f"<div class='topic-card compact-card'>"
@@ -137,14 +137,14 @@ with col1:
 with col2:
     fig = go.Figure(
         go.Choropleth(
-            locations=data["source_country"],
-            z=data["article_count"],
+            locations=country_counts["source_country"],
+            z=country_counts["article_count"],
             locationmode="country names",
             colorscale=colorscale,
             colorbar_title="Articles",
             marker_line_color="rgba(229,236,246,0.25)",
             marker_line_width=0.5,
-            customdata=data[["coverage_label", "share"]],
+            customdata=country_counts[["coverage_label", "share"]],
             hovertemplate=(
                 "<b>%{location}</b><br>"
                 "<span style='color:#38bdf8;'>%{customdata[0]}</span><br>"
@@ -179,7 +179,8 @@ st.markdown(
     "A small number of dominant domains can indicate concentrated media influence or "
     "repeated framing within GDELT coverage."
 )
-available_countries = sorted(domain_data["source_country"].dropna().unique())
+# Available countries based on domain counts
+available_countries = sorted(domain_counts["source_country"].dropna().unique())
 # Default to United Kingdom if available, else first option
 default_index = 0
 if "United Kingdom" in available_countries:
@@ -191,7 +192,7 @@ selected_country = st.selectbox(
 )
 
 if selected_country:
-    country_domains = domain_data[domain_data["source_country"] == selected_country]
+    country_domains = domain_counts[domain_counts["source_country"] == selected_country]
     top_domains = country_domains.sort_values("article_count", ascending=False).head(10)
     if not top_domains.empty:
         total = country_domains["article_count"].sum()

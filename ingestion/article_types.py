@@ -5,8 +5,8 @@ from typing import Optional, Dict, Any, List
 
 @dataclass
 class NormalizedArticle:
-    provider: str                  # "gdelt" | "eventregistry" | ...
-    provider_id: Optional[str]     # provider-specific id if exists
+    provider: str                  # "gdelt", "eventregistry" 
+    provider_id: Optional[str]    
     url: str
     title: str
     summary: Optional[str]
@@ -16,8 +16,8 @@ class NormalizedArticle:
 
     source_name: Optional[str]
     source_domain: Optional[str]
-    source_country: Optional[str]  # ISO2 if possible (e.g. "SE")
-    language: Optional[str]        # ISO639-1 if possible (e.g. "sv", "en")
+    source_country: Optional[str]  
+    language: Optional[str]      
 
-    topics: List[str]              # normalized topics like ["business","finance"]
-    raw: Dict[str, Any]            # original payload for debugging / future enrichment
+    topics: List[str]            
+    raw: Dict[str, Any]          

@@ -254,7 +254,7 @@ def render_nav():
         if st.button("Global overview", use_container_width=True):
             st.switch_page("pages/Global_Coverage.py")
     with cols[2]:
-        if st.button("Analysis", use_container_width=True):
+        if st.button("Text Analysis", use_container_width=True):
             st.switch_page("pages/News_Analysis.py")
     with cols[3]:
         if st.button("Financial Focus", use_container_width=True):

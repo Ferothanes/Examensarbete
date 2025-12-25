@@ -9,7 +9,7 @@ import textwrap
 from datetime import datetime, timezone, timedelta
 
 from dotenv import load_dotenv
-from dashboard.styles import apply_theme, render_nav, apply_hover_style
+from dashboard.styles import apply_theme, render_nav
 import google.generativeai as genai
 
 # Ensure project root is available in Python import path
@@ -60,6 +60,7 @@ cutoff_iso = cutoff.isoformat() if cutoff else None
 
 @st.cache_data(ttl=600)
 def load_articles(cutoff_iso: str | None):
+    """Load articles from DuckDB and parse topics as Python lists."""
     con = duckdb.connect(DB_FILE, read_only=True)
     query = """
         SELECT title, summary, body, published_at, provider, source_country, topics, url
@@ -70,25 +71,29 @@ def load_articles(cutoff_iso: str | None):
     if cutoff_iso:
         query += " AND published_at >= ?"
         params.append(cutoff_iso)
-    df = con.execute(query, params).df()
+    articles_df = con.execute(query, params).df()
     con.close()
-    def parse_topics(x):
+
+    def parse_topics(raw):
         try:
-            return json.loads(x) if x else []
+            return json.loads(raw) if raw else []
         except Exception:
             return []
-    df["topics"] = df["topics"].apply(parse_topics)
-    df["published_at"] = pd.to_datetime(df["published_at"], utc=True, errors="coerce")
-    df["summary"] = df["summary"].fillna("")
-    df["source_country"] = df["source_country"].fillna("Unknown")
-    df["url"] = df["url"].fillna("")
-    return df
+
+    articles_df["topics"] = articles_df["topics"].apply(parse_topics)
+    articles_df["published_at"] = pd.to_datetime(
+        articles_df["published_at"], utc=True, errors="coerce"
+    )
+    articles_df["summary"] = articles_df["summary"].fillna("")
+    articles_df["source_country"] = articles_df["source_country"].fillna("Unknown")
+    articles_df["url"] = articles_df["url"].fillna("")
+    return articles_df
 
 
-df = load_articles(cutoff_iso)
-# Split by provider
-df_er = df[df["provider"].str.lower() == "eventregistry"].copy()
-df_gdelt = df[df["provider"].str.lower() == "gdelt"].copy()
+articles = load_articles(cutoff_iso)
+# Split by provider for clarity
+er_articles = articles[articles["provider"].str.lower() == "eventregistry"].copy()
+gdelt_articles = articles[articles["provider"].str.lower() == "gdelt"].copy()
 
 # Configure Gemini if key present
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -121,19 +126,20 @@ custom_q = st.text_input("Ask or edit your question:", value=prefill)
 question = custom_q.strip()
 ask_clicked = st.button("Ask question")
 
-mask_er = df_er["topics"].apply(lambda ts: any(t in focus_topics for t in ts))
-er_fin = df_er[mask_er].copy().sort_values("published_at", ascending=False)
+# Filter to EventRegistry articles that match financial topics
+er_financial = er_articles[er_articles["topics"].apply(lambda ts: any(t in focus_topics for t in ts))]
+er_financial = er_financial.sort_values("published_at", ascending=False)
 
 if ask_clicked:
     if not GEMINI_API_KEY:
         st.info("Add GEMINI_API_KEY to your .env to enable the financial Q&A assistant.")
-    elif er_fin.empty:
+    elif er_financial.empty:
         st.info("No recent financial EventRegistry articles available for Q&A.")
     elif not question:
         st.info("Enter a question or click a preset to ask about the financial articles.")
     else:
         # Use a larger slice of financial articles while keeping prompt size reasonable
-        context_rows = er_fin.head(100)
+        context_rows = er_financial.head(100)
         context_snippets = [
             f"Title: {r['title']}\nSummary: {r.get('summary','')[:500]}\nPublished: {r.get('published_at')}"
             for _, r in context_rows.iterrows()
@@ -157,10 +163,10 @@ if ask_clicked:
 # Recent Financial Headlines (EventRegistry)
 # -------------------------------------------------------------------
 st.subheader("Recent Financial Headlines")
-if er_fin.empty:
+if er_financial.empty:
     st.info("No financial narratives found in EventRegistry for the selected time range.")
 else:
-    er_fin = er_fin.sort_values("published_at", ascending=False)
+    er_fin = er_financial.sort_values("published_at", ascending=False)
     page_size = 10
     total_pages = max(1, (len(er_fin) + page_size - 1) // page_size)
     page = st.selectbox(
