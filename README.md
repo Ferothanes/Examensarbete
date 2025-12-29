@@ -19,6 +19,21 @@ Each source is used for what it does best: **GDELT for geographic coverage**, **
 Rather than focusing on individual articles, the dashboard highlights **patterns in coverage** across regions, languages, and time. Use the filters to explore where attention is concentrated, which topics dominate, how narratives persist, and which stories may be underrepresented.
 
 
+## Environment variables (.env) — required
+
+This project relies on external APIs and requires a `.env` file in the **project root**.
+
+Without this file, ingestion and some dashboard features will not work.
+
+### Required variables
+
+Create a file named `.env` in the root directory and add:
+
+- EVENTREGISTRY_API_KEY=your_eventregistry_key_here
+- GEMINI_API_KEY=your_gemini_key_here
+
+You can find your eventregistry key here: https://eventregistry.org/ 
+
 ---
 
 ## Dataflow (very short) 
