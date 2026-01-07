@@ -67,13 +67,12 @@ def load_country_counts(cutoff_iso: str | None):
 
 @st.cache_data(ttl=600)
 def load_domain_counts(cutoff_iso: str | None):
-    """Load GDELT article counts per (country, domain)."""
+    """Load article counts per (country, domain) across all providers."""
     con = duckdb.connect(DB_FILE, read_only=True)
     query = """
         SELECT source_country, source_domain, published_at
         FROM articles
-        WHERE lower(provider) = 'gdelt'
-          AND source_country IS NOT NULL
+        WHERE source_country IS NOT NULL
           AND source_domain IS NOT NULL
     """
     params = []
@@ -172,12 +171,12 @@ with col2:
     apply_hover_style(fig)
     st.plotly_chart(fig, use_container_width=True)
 
-# Top publishing domains per country (GDELT only)
-st.subheader("Top Publishing Domains per Country (GDELT)")
+# Top publishing domains per country (all sources)
+st.subheader("Top Publishing Domains per Country (All Sources)")
 st.markdown(
     "Shows which news domains contribute the most articles for the selected country. "
     "A small number of dominant domains can indicate concentrated media influence or "
-    "repeated framing within GDELT coverage."
+    "repeated framing within coverage."
 )
 # Available countries based on domain counts
 available_countries = sorted(domain_counts["source_country"].dropna().unique())
@@ -217,7 +216,7 @@ if selected_country:
             <div class="metric-badge">
                 <div class="metric-value">{top3_pct}%</div>
                 <div class="metric-text">
-                    of all GDELT articles in <b>{selected_country}</b><br>
+                    of all articles in <b>{selected_country}</b><br>
                     come from the <b>top 3 domains</b><br>
                     <span style="color:#38bdf8; font-weight:700;">{concentration_level}</span>
                 </div>

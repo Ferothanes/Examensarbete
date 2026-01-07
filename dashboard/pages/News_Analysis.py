@@ -94,6 +94,29 @@ df = load_articles(cutoff_iso)
 # Restrict analysis to EventRegistry only
 df = df[df["provider"].str.lower() == "eventregistry"]
 
+# Cache framing aggregation to avoid recomputing on every rerun.
+@st.cache_data(ttl=600)
+def compute_framing_totals(frame_df: pd.DataFrame) -> pd.DataFrame:
+    framing_df = frame_df.copy()
+    framing_df["body"] = framing_df["body"].fillna("")
+    # If body is empty, fall back to summary text
+    framing_df["body"] = np.where(
+        framing_df["body"].str.len() == 0,
+        framing_df["summary"],
+        framing_df["body"],
+    )
+    frame_counts = framing_df["body"].apply(count_frames)
+    frame_totals = pd.DataFrame(list(frame_counts)).fillna(0)
+    frame_totals["published_at"] = framing_df["published_at"].values
+
+    # Aggregate weekly for totals
+    frame_totals["week"] = frame_totals["published_at"].dt.to_period("W").apply(lambda r: r.start_time)
+    weekly = frame_totals.groupby("week")[list(FRAME_GROUPS.keys())].sum().reset_index()
+
+    total_counts = weekly[list(FRAME_GROUPS.keys())].sum().reset_index()
+    total_counts.columns = ["frame", "count"]
+    return total_counts
+
 # explode topics. Convert list of topics into one row per topic
 exploded = df.explode("topics").dropna(subset=["topics"]).copy()
 exploded["topics"] = exploded["topics"].astype(str)
@@ -145,21 +168,6 @@ fig_topic_total.update_yaxes(
     zeroline=False,
 )
 st.plotly_chart(fig_topic_total, use_container_width=True)
-framing_df = df.copy()
-framing_df["body"] = framing_df["body"].fillna("")
-# If body is empty, fall back to summary text
-framing_df["body"] = np.where(
-    framing_df["body"].str.len() == 0,
-    framing_df["summary"],
-    framing_df["body"],
-)
-frame_counts = framing_df["body"].apply(count_frames)
-frame_totals = pd.DataFrame(list(frame_counts)).fillna(0)
-frame_totals["published_at"] = framing_df["published_at"].values
-
-# Aggregate weekly for totals
-frame_totals["week"] = frame_totals["published_at"].dt.to_period("W").apply(lambda r: r.start_time)
-weekly = frame_totals.groupby("week")[list(FRAME_GROUPS.keys())].sum().reset_index()
 
 # Total dominance across selected time range
 st.subheader("Dominant News Framings in Recent Coverage")
@@ -169,14 +177,13 @@ st.markdown(
     "certain perspectives such as conflict, security, sanctions, or humanitarian impact. "
     "The analysis reflects attention allocation rather than sentiment or intent."
 )
-total_counts = weekly[list(FRAME_GROUPS.keys())].sum().reset_index()
-total_counts.columns = ["frame", "count"]
+total_counts = compute_framing_totals(df)
 bar_fig = px.bar(
     total_counts.sort_values("count", ascending=False),
     x="frame",
     y="count",
     title="",
-    labels={"frame": "Frame", "count": "Keyword hits"},
+    labels={"frame": "Frame", "count": "Articles"},
 )
 bar_fig.update_layout(
     plot_bgcolor="#0f172a",
@@ -186,7 +193,7 @@ bar_fig.update_layout(
     width=1100,
 )
 bar_fig.update_traces(
-    hovertemplate="<b>%{x}</b><br>Keyword hits: %{y:,}<extra></extra>"
+    hovertemplate="<b>%{x}</b><br>Articles: %{y:,}<extra></extra>"
 )
 apply_hover_style(bar_fig)
 st.plotly_chart(bar_fig, use_container_width=False)
@@ -224,6 +231,7 @@ if clusters_sorted:
     def _mode_topic(rows):
         bag = Counter()
         for r in rows:
+            # getatts = give me r.topics if it exists
             for t in getattr(r, "topics", []) or []:
                 bag[t] += 1
         return bag.most_common(1)[0][0] if bag else ""

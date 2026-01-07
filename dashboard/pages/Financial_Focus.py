@@ -63,7 +63,7 @@ def load_articles(cutoff_iso: str | None):
     """Load articles from DuckDB and parse topics as Python lists."""
     con = duckdb.connect(DB_FILE, read_only=True)
     query = """
-        SELECT title, summary, body, published_at, provider, source_country, topics, url
+        SELECT title, summary, body, published_at, provider, source_country, source_domain, topics, url
         FROM articles
         WHERE topics IS NOT NULL
     """
@@ -86,6 +86,7 @@ def load_articles(cutoff_iso: str | None):
     )
     articles_df["summary"] = articles_df["summary"].fillna("")
     articles_df["source_country"] = articles_df["source_country"].fillna("Unknown")
+    articles_df["source_domain"] = articles_df["source_domain"].fillna("")
     articles_df["url"] = articles_df["url"].fillna("")
     return articles_df
 
@@ -152,16 +153,15 @@ if ask_clicked:
         {"---".join(context_snippets)}
         """)
         try:
-            model = genai.GenerativeModel("gemini-2.5-flash")
+            model = genai.GenerativeModel("gemini-2.5-flash-lite")
             resp = model.generate_content(prompt)
             answer = resp.text if hasattr(resp, "text") else "No answer returned."
         except Exception as e:
             answer = f"Request failed: {e}"
         st.markdown(f"**Answer:** {answer}")
 
-# -------------------------------------------------------------------
-# Recent Financial Headlines (EventRegistry)
-# -------------------------------------------------------------------
+
+
 st.subheader("Recent Financial Headlines")
 if er_financial.empty:
     st.info("No financial narratives found in EventRegistry for the selected time range.")
@@ -183,8 +183,11 @@ else:
         published_str = ""
         if pd.notna(row["published_at"]):
             published_str = pd.to_datetime(row["published_at"]).strftime("%Y-%m-%d %H:%M")
+        display_source = row.get("source_domain") or row.get("source_country")
+        topics = row.get("topics") or []
+        topic_label = topics[0] if topics else ""
         meta = " | ".join(
-            [x for x in [row.get("provider"), row.get("source_country"), published_str] if x]
+            [x for x in [row.get("provider"), display_source, published_str, topic_label] if x]
         )
         url = row.get("url", "")
         title_md = f"[{row['title']}]({url})" if url else row["title"]

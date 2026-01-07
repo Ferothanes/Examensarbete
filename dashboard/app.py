@@ -49,12 +49,13 @@ def load_data():
             published_at,
             provider,
             source_name,
+            source_domain,
             source_country,
             language,
             topics
         FROM articles
         ORDER BY published_at DESC
-        LIMIT 3000
+        LIMIT 5000
     """).df()
     con.close()
 
@@ -179,9 +180,12 @@ for _, row in filtered_df.iterrows():
     if pd.notna(row["published_at"]):
         published_str = pd.to_datetime(row["published_at"]).strftime("%Y-%m-%d %H:%M")
 
+    source_domain = row.get("source_domain")
+    source_name = row.get("source_name")
+    display_source = source_domain or source_name or "Unknown source"
+
     meta_parts = [
-        # For GDELT we don’t have a domain; show "Unknown" as the source name.
-        "Unknown domain" if str(row["provider"]).lower() == "gdelt" else row["source_name"],
+        display_source,
         row["provider"],
         published_str
     ]

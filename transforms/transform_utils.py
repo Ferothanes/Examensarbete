@@ -233,14 +233,12 @@ FRAME_GROUPS: Dict[str, List[str]] = {
 
 
 def count_frames(text: str) -> dict:
-    """Count keyword hits per framing group inside a text blob."""
+    """Count article-level matches per framing group inside a text blob."""
     txt = (text or "").lower()
     scores = {}
     for frame, kws in FRAME_GROUPS.items():
-        count = 0
-        for kw in kws:
-            count += len(re.findall(rf"\b{re.escape(kw)}\b", txt))
-        scores[frame] = count
+        matched = any(re.search(rf"\b{re.escape(kw)}\b", txt) for kw in kws)
+        scores[frame] = 1 if matched else 0
     return scores
 
 
@@ -261,10 +259,9 @@ def _jaccard(a: Set[str], b: Set[str]) -> float:
         return 0.0
     return inter / len(a | b)
 
-
+# delar upp varje titel i ord, jämför rubrikerna med varann, grupperar liknande artiklar 
 def cluster_articles_by_title(
-    #max 300 articles being compared, must be atleast 35% similar
-    frame: pd.DataFrame, limit: int = 300, threshold: float = 0.35 
+    frame: pd.DataFrame, limit: int = 300, threshold: float = 0.35 #max 300 articles being compared, must be atleast 35% similar
 ) -> List[list]:
 
     # removes articles with no title, sorts and only takes limit rules set above
@@ -296,4 +293,3 @@ def cluster_articles_by_title(
         clusters.setdefault(root, []).append(row)
 
     return [members for members in clusters.values() if len(members) > 1]
-
