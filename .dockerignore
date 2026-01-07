@@ -1,0 +1,9 @@
+.git
+.gitignore
+.venv
+__pycache__/
+.pytest_cache/
+.tmp_dagster_home_*
+*.ipynb
+tests/
+.env

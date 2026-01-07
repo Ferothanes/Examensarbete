@@ -2,9 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system deps (if any compiled wheels are needed later, add build-essential)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# If you later need system deps for compiled wheels, add them here.
 
 # Copy requirements and install
 COPY requirements.txt .
